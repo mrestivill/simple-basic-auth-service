@@ -2,6 +2,13 @@
 
 Simple mock service that requires basic auth authentication
 
+## Python
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
 ## Docker
 
 
