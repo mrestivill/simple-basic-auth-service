@@ -1,5 +1,5 @@
 import os
-from typing import Annotated, Dict
+from typing import Dict
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
@@ -9,8 +9,8 @@ security = HTTPBasic()
 
 def get_env_credentials():
     """Get credentials from environment variables"""
-    username = os.getenv("USER", "admin")
-    password = os.getenv("PASSWORD", "secret")
+    username = os.getenv("APP_USER", "admin")
+    password = os.getenv("APP_PASSWORD", "secret")
     return username, password
 
 def should_echo_headers() -> bool:
@@ -18,7 +18,7 @@ def should_echo_headers() -> bool:
     echo_var = os.getenv("ECHO_VARIABLES", "false").lower()
     return echo_var in ["true", "1", "yes", "y", "on"]
 
-def authenticate_user(credentials: HTTPBasicCredentials):
+def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
     """Authenticate user against environment variables"""
     correct_username, correct_password = get_env_credentials()
     
@@ -45,10 +45,11 @@ def authenticate_user(credentials: HTTPBasicCredentials):
     return credentials.username
 
 @app.get("/")
-def read_current_user(
+async def read_current_user(
     request: Request,
-    username: Annotated[str, Depends(authenticate_user)]
+    username: str = Depends(authenticate_user)
 ):
+    """Main endpoint with conditional header echo"""
     response_data = {
         "message": f"Hello {username}",
         "authenticated": True,
@@ -74,16 +75,19 @@ def read_current_user(
     return response_data
 
 @app.get("/health")
-def health_check():
+async def health_check():
+    """Health check endpoint"""
     return {
         "status": "healthy",
         "echo_variables_enabled": should_echo_headers()
     }
 
 @app.get("/config")
-def show_config():
+async def show_config():
     """Endpoint to show current configuration (no auth required)"""
     return {
         "echo_variables_enabled": should_echo_headers(),
-        "echo_variables_value": os.getenv("ECHO_VARIABLES", "not set")
+        "echo_variables_value": os.getenv("ECHO_VARIABLES", "not set"),
+        "app_user_set": bool(os.getenv("USER")),
+        "app_password_set": bool(os.getenv("PASSWORD"))
     }
