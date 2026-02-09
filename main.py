@@ -65,6 +65,8 @@ async def read_current_user(
             # Skip sensitive headers
             if name.lower() not in ['authorization', 'cookie', 'x-api-key']:
                 headers[name] = value
+            else:
+                headers[name] = "******"
         
         response_data["echo_variables_enabled"] = True
         response_data["your_headers"] = headers
