@@ -1,9 +1,5 @@
 FROM python:3.11-slim
 
-# Set environment variables
-ENV USER=admin
-ENV PASSWORD=secret
-
 WORKDIR /app
 
 # Install dependencies

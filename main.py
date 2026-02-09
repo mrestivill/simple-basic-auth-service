@@ -1,6 +1,6 @@
 import os
-from typing import Annotated
-from fastapi import Depends, FastAPI, HTTPException, status
+from typing import Annotated, Dict
+from fastapi import Depends, FastAPI, HTTPException, status, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
 
@@ -12,6 +12,11 @@ def get_env_credentials():
     username = os.getenv("USER", "admin")
     password = os.getenv("PASSWORD", "secret")
     return username, password
+
+def should_echo_headers() -> bool:
+    """Check if we should echo headers based on ECHO_VARIABLES env var"""
+    echo_var = os.getenv("ECHO_VARIABLES", "false").lower()
+    return echo_var in ["true", "1", "yes", "y", "on"]
 
 def authenticate_user(credentials: HTTPBasicCredentials):
     """Authenticate user against environment variables"""
@@ -41,13 +46,44 @@ def authenticate_user(credentials: HTTPBasicCredentials):
 
 @app.get("/")
 def read_current_user(
+    request: Request,
     username: Annotated[str, Depends(authenticate_user)]
 ):
-    return {
+    response_data = {
         "message": f"Hello {username}",
-        "authenticated": True
+        "authenticated": True,
+        "client_ip": request.client.host if request.client else None,
+        "request_method": request.method,
+        "request_path": request.url.path
     }
+    
+    # Only add headers if ECHO_VARIABLES is true
+    if should_echo_headers():
+        headers = {}
+        for name, value in request.headers.items():
+            # Skip sensitive headers
+            if name.lower() not in ['authorization', 'cookie', 'x-api-key']:
+                headers[name] = value
+        
+        response_data["echo_variables_enabled"] = True
+        response_data["your_headers"] = headers
+    else:
+        response_data["echo_variables_enabled"] = False
+        response_data["note"] = "Set ECHO_VARIABLES=true to see headers"
+    
+    return response_data
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "echo_variables_enabled": should_echo_headers()
+    }
+
+@app.get("/config")
+def show_config():
+    """Endpoint to show current configuration (no auth required)"""
+    return {
+        "echo_variables_enabled": should_echo_headers(),
+        "echo_variables_value": os.getenv("ECHO_VARIABLES", "not set")
+    }
