@@ -91,3 +91,7 @@ async def show_config():
         "app_user_set": bool(os.getenv("USER")),
         "app_password_set": bool(os.getenv("PASSWORD"))
     }
+    
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app,port=8000)
